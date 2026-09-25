@@ -6,7 +6,7 @@ This project is a worked example of the tissue conversion factor methodology des
 
 ## Data sources
 
-The data used in this example (`data/herring_liver_muscle.xlsx`, `data/perch_liver_muscle_long.xlsx`, `data/perch_eelpout_liver_muscle.xlsx`) originate from:
+The data used in this example (`Data/herring_liver_muscle.xlsx`, `Data/perch_liver_muscle_long.xlsx`, `Data/perch_eelpout_liver_muscle.xlsx`) originate from:
 
 > Faxneld, S., Danielsson, S., Nyberg, E. (2015). Conversion factors for metals between liver, muscle and whole body in perch. Report nr 1:2015. Swedish Museum of Natural History, Stockholm, Sweden.
 
