@@ -9,13 +9,50 @@
 # liver:muscle conversion factor (k) per parameter and species, following the
 # geometric-mean method of Soerensen et al. 2023.
 
-
+## Libraries ----
 library(tidyverse)
 library(readxl)
 library(stringr)
 library(ggplot2)
 
-## read data ----
+## Functions ----
+# Function to compute geometric mean and CI from log-transformed data
+geom_summary <- function(log_values) {
+  # Remove NAs
+  log_values <- log_values[!is.na(log_values)]
+  n <- length(log_values)
+  
+  # No data
+  if (n == 0) {
+    return(tibble(geo_mean = NA_real_, 
+                  ci_lower = NA_real_,
+                  ci_upper = NA_real_, 
+                  n = 0L))
+  }
+  
+  mean_log <- mean(log_values)
+  
+  # One value, or no variation (e.g. two identical samples): no CI possible
+  if (n < 2 || sd(log_values) == 0) {
+    return(tibble(geo_mean = exp(mean_log), 
+                  ci_lower = NA_real_,
+                  ci_upper = NA_real_, 
+                  n = n))
+  }
+  
+  # Perform t-test to get CI on the log scale
+  test <- t.test(log_values)
+  
+  # Back-transform to original scale
+  tibble(
+    geo_mean = exp(mean_log),
+    ci_lower = exp(test$conf.int[1]),
+    ci_upper = exp(test$conf.int[2]),
+    n=n
+  )
+}
+
+## Read data ----
 ###  perch data, Faxneld et al. 2015 ----
 perch <- read_excel("Data/perch_liver_muscle_long.xlsx", skip = 2) |>
   rename(Sample = 'specimen_no',
@@ -53,31 +90,22 @@ perch_eelpout <- read_excel("Data/perch_eelpout_liver_muscle.xlsx", skip = 2) |>
   select(Species, Parameter, Sample, Site, Muscle, Liver) 
 
 
-## bind data and calculate k----
+## Bind data and calculate k----
 ind_k <- bind_rows(perch, herring, perch_eelpout) |>
   select(-c(Sample, Site)) |>
   mutate(log_k = log(Liver/Muscle), # equivalent to: (log_k = log(Liver) - log(Muscle)
          k_l_m_ind = Liver/Muscle)
   
-## calculate average k per species and parameter ----
-avg_k <- ind_k |> 
-  group_by(Parameter,Species) |>
-  summarise(
-        across(where(is.numeric), \(x) mean(x, na.rm = TRUE)),
-        n = n(),
-        .groups = "drop"
-  ) |>
-  # producing the average k (liver:muscle ratio) 
-  # multiply muscle by k to estimate liver, or divide liver by k to estimate muscle
-  mutate(k_l_m =exp(log_k)) |>
-  mutate(across(where(is.numeric), \(x) round(x, 1))) |>
-  relocate(n, .after = last_col()) |>
-  select(-log_k, -k_l_m_ind)
+## Calculate average k per species and parameter ----
+summary_table <- ind_k |>
+  group_by(Parameter, Species) |>
+  summarise(geom_summary(log_k), .groups = "drop") 
 
-## write table with average k values to csv ----
-write_csv(avg_k, "Results/fish_metal_conversion_factors.csv")
+## Write table with average k values to csv ----
+write_csv(summary_table, "Results/fish_metal_conversion_factors.csv")
 
-## plot individual and average k values ----
+
+## Plot individual and average k values ----
 k <- ggplot(ind_k, aes(k_l_m_ind, Species))+
   geom_point(color = 'grey') +
   geom_point(avg_k, mapping = aes(k_l_m, Species), color = "black", size = 3) +
