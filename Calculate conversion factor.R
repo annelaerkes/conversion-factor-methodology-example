@@ -24,9 +24,9 @@ geom_summary <- function(log_values) {
   
   # No data
   if (n == 0) {
-    return(tibble(geo_mean = NA_real_, 
-                  ci_lower = NA_real_,
-                  ci_upper = NA_real_, 
+    return(tibble(k = NA_real_, 
+                  ci_lower_k = NA_real_,
+                  ci_upper_k = NA_real_, 
                   n = 0L))
   }
   
@@ -34,9 +34,9 @@ geom_summary <- function(log_values) {
   
   # One value, or no variation (e.g. two identical samples): no CI possible
   if (n < 2 || sd(log_values) == 0) {
-    return(tibble(geo_mean = exp(mean_log), 
-                  ci_lower = NA_real_,
-                  ci_upper = NA_real_, 
+    return(tibble(k = exp(mean_log), 
+                  ci_lower_k = NA_real_,
+                  ci_upper_k = NA_real_, 
                   n = n))
   }
   
@@ -45,9 +45,9 @@ geom_summary <- function(log_values) {
   
   # Back-transform to original scale
   tibble(
-    geo_mean = exp(mean_log),
-    ci_lower = exp(test$conf.int[1]),
-    ci_upper = exp(test$conf.int[2]),
+    k = exp(mean_log),
+    ci_lower_k = exp(test$conf.int[1]),
+    ci_upper_k = exp(test$conf.int[2]),
     n=n
   )
 }
@@ -99,7 +99,11 @@ ind_k <- bind_rows(perch, herring, perch_eelpout) |>
 ## Calculate average k per species and parameter ----
 summary_table <- ind_k |>
   group_by(Parameter, Species) |>
-  summarise(geom_summary(log_k), .groups = "drop") 
+  summarise(
+    gm_conc_Liver = exp(mean(log(Liver), na.rm = TRUE)),
+    gm_conc_Muscle = exp(mean(log(Muscle), na.rm = TRUE)),
+    geom_summary(log_k), .groups = "drop") |>
+  mutate(across(where(is.numeric), \(x) round(x, 1)))
 
 ## Write table with average k values to csv ----
 write_csv(summary_table, "Results/fish_metal_conversion_factors.csv")
